@@ -1,4 +1,6 @@
 node_modules/
 out/
+slides-tmp/
 dati.json
+ci/mappa.json
 .DS_Store

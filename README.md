@@ -78,3 +78,61 @@ npm run esempio
 ```
 
 Usa `dati.esempio.json` (un paper vero dell'Archivio) e scrive 4 JPG in `./out`.
+
+---
+
+## La GitHub Action
+
+Il render **non** gira nel container di Claude: da lì la rete in uscita è una lista
+chiusa e non si può scrivere da nessuna parte. Gira qui, su GitHub, che per i
+repository pubblici non ha limiti di minuti.
+
+`.github/workflows/slide.yml` parte ogni giorno alle **03:00 UTC (05:00 in Italia)**,
+tredici ore prima della pubblicazione delle 18:00, e si può lanciare a mano dalla
+tab *Actions*. Fa cinque cose:
+
+1. `ci/prepara.js` — interroga la *Coda Instagram* e prende le righe con
+   *Stato* `da pubblicare` e *Data pubblicazione* da oggi in avanti. Per ognuna
+   legge il **blocco codice JSON** nel corpo della pagina. Salta le righe che
+   hanno già delle immagini: rilanciare il workflow non crea doppioni.
+2. `render.js` — genera i 4 JPG in `slides/<data>-<slug>/`.
+3. commit e push dei JPG nel repo.
+4. `ci/pubblica.js` — carica i JPG dentro Notion con l'API File Upload e li mette
+   nel corpo della pagina, in ordine di slide. Diventano blocchi immagine identici
+   a quelli che Make legge già oggi: **lo scenario Make non va toccato.**
+   Se il caricamento fallisce ripiega sugli URL `raw.githubusercontent.com`.
+5. se qualcosa si rompe, `ci/segnala-errore.js` mette la riga in *Stato* `errore`
+   con il link al log, così Make non pubblica una riga senza slide.
+
+### Cosa scrive Claude il mercoledì
+
+Claude non renderizza più niente. Per ogni giorno crea la riga in coda e mette nel
+**corpo della pagina un blocco codice `json`** con i campi del carosello:
+
+```json
+{
+  "slug": "glicemia-1-ora",
+  "titolo": "La glicemia a 1 ora batte tutti gli altri",
+  "sottotitolo": "Diagnosi di diabete tipo 2: cosa vede e cosa non vede ogni test",
+  "hook": "I nostri esami per il diabete ne mancano circa la metà.",
+  "cosa_aggiunge": "…",
+  "head_solidita": "…",
+  "solidita": "…",
+  "limiti": "…",
+  "cta": "…",
+  "fonte": "Frontiers in Endocrinology · meta-analisi in rete",
+  "pmid": "42488005"
+}
+```
+
+`data` non serve scriverlo: vince sempre la *Data pubblicazione* della riga.
+
+### L'unica cosa da configurare a mano
+
+Un secret di repository chiamato **`NOTION_TOKEN`**
+(*Settings → Secrets and variables → Actions → New repository secret*).
+
+È il token di un'integrazione interna creata su
+[notion.so/my-integrations](https://www.notion.so/my-integrations), a cui vanno
+condivisi il database *Coda Instagram — Digest nutrizione* e le sue pagine.
+Permessi necessari: leggere contenuti, aggiornarli, inserire contenuti.
