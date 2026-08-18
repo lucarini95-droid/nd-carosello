@@ -52,16 +52,16 @@ function esito(chiave, valore) {
       continue;
     }
 
+        // la data della riga vince su quella scritta nel JSON
+    const dataRiga = riga.properties?.['Data pubblicazione']?.date?.start;
+    if (dataRiga) d.data = String(dataRiga).slice(0, 10);
+
     const mancanti = CAMPI.filter((c) => typeof d[c] !== 'string' || !d[c].trim());
     if (mancanti.length) {
       console.log(`  PROBLEMA  "${titolo}": campi mancanti ${mancanti.join(', ')}`);
       await N.segnalaErrore(riga.id, 'Slide non generate, campi mancanti: ' + mancanti.join(', '));
       continue;
     }
-
-    // la data della riga vince su quella scritta nel JSON
-    const dataRiga = riga.properties?.['Data pubblicazione']?.date?.start;
-    if (dataRiga) d.data = String(dataRiga).slice(0, 10);
 
     dati.push(d);
     mappa.push({ pageId: riga.id, cartella: `${d.data}-${d.slug}`, titolo });
