@@ -1,0 +1,16 @@
+{
+  "name": "nd-carosello",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Render delle slide del carosello Instagram di Nutrition Dilemma",
+  "main": "render.js",
+  "scripts": {
+    "esempio": "node render.js dati.esempio.json ./out"
+  },
+  "dependencies": {
+    "@fontsource/bodoni-moda": "^5.2.5",
+    "@fontsource/poppins": "^5.2.5",
+    "@fontsource/space-mono": "^5.2.5",
+    "playwright": "^1.56.0"
+  }
+}

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#f5eeec;
+    --ink:#120121;
+    --green:#17504b;
+    --grey:#7a6f6c;
+    --margin:108px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:var(--bg)}
+  body{width:1080px;height:1350px;overflow:hidden}
+
+  #stage{
+    width:1080px;height:1350px;
+    background:var(--bg);
+    color:var(--ink);
+    padding:var(--margin);
+    display:flex;flex-direction:column;
+    position:relative;
+  }
+
+  /* ---------- fasce fisse ---------- */
+  .top{flex:0 0 auto;display:flex;justify-content:space-between;align-items:baseline}
+  .bottom{flex:0 0 auto;display:flex;justify-content:space-between;align-items:flex-end;gap:24px}
+  .body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;
+        padding:56px 0;font-size:40px}
+
+  .eyebrow{
+    font-family:'ND Mono',monospace;font-weight:700;
+    font-size:19px;letter-spacing:.20em;text-transform:uppercase;color:var(--green);
+  }
+  .pager{
+    font-family:'ND Mono',monospace;font-weight:400;
+    font-size:19px;letter-spacing:.14em;color:var(--grey);
+  }
+  .fonte{
+    font-family:'ND Mono',monospace;font-weight:400;
+    font-size:18px;line-height:1.5;letter-spacing:.02em;color:var(--grey);
+    max-width:760px;
+  }
+
+  /* ---------- elementi del corpo (tutto in em: l'auto-fit scala il corpo) ---------- */
+  .display{
+    font-family:'ND Display',serif;font-weight:600;
+    line-height:1.07;letter-spacing:-.012em;
+  }
+  .d-xl{font-size:2.30em}
+  .d-lg{font-size:1.62em}
+  .d-md{font-size:1.34em}
+  .up{text-transform:uppercase}
+
+  .label{
+    font-family:'ND Mono',monospace;font-weight:700;
+    font-size:.44em;letter-spacing:.19em;text-transform:uppercase;color:var(--green);
+    margin-bottom:.34em;
+  }
+  .p{
+    font-family:'ND Text',sans-serif;font-weight:400;
+    font-size:.62em;line-height:1.58;color:var(--ink);
+  }
+  .p.muted{color:var(--grey)}
+
+  .rule{border:0;border-top:3px solid var(--green);width:180px;margin:.85em 0}
+  .gap-s{height:.55em}
+  .gap-m{height:1.05em}
+  .gap-l{height:1.55em}
+
+  .limiti{
+    border-left:5px solid var(--green);
+    padding-left:.7em;
+  }
+
+  .ctabox{
+    border:3px solid var(--green);
+    padding:.62em .8em;
+    display:inline-block;
+  }
+  .ctabox .site{
+    font-family:'ND Mono',monospace;font-weight:700;
+    font-size:.62em;letter-spacing:.05em;color:var(--green);
+  }
+  .ctabox .sub{
+    font-family:'ND Mono',monospace;font-weight:400;
+    font-size:.44em;letter-spacing:.16em;text-transform:uppercase;color:var(--grey);
+    margin-top:.35em;
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<script>
+const PAL = { total: 4 };
+
+function esc(s){ return String(s == null ? '' : s); }
+
+function el(tag, cls, text){
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = esc(text);
+  return n;
+}
+function gap(size){ return el('div','gap-'+size); }
+
+/* ---------- costruzione delle 4 slide ---------- */
+function buildBody(item, n){
+  const b = el('div','body');
+
+  if (n === 1){
+    const t = el('h1','display d-xl up', item.titolo);
+    b.appendChild(t);
+    b.appendChild(el('hr','rule'));
+    if (item.sottotitolo) b.appendChild(el('p','p muted', item.sottotitolo));
+  }
+
+  if (n === 2){
+    b.appendChild(el('p','display d-lg', item.hook));
+    b.appendChild(el('hr','rule'));
+    b.appendChild(el('p','label','Cosa aggiunge'));
+    b.appendChild(el('p','p', item.cosa_aggiunge));
+  }
+
+  if (n === 3){
+    b.appendChild(el('p','display d-md', item.head_solidita));
+    b.appendChild(gap('m'));
+    b.appendChild(el('p','label',"L'evidenza"));
+    b.appendChild(el('p','p', item.solidita));
+    b.appendChild(gap('l'));
+    const lim = el('div','limiti');
+    lim.appendChild(el('p','label','I limiti'));
+    lim.appendChild(el('p','p', item.limiti));
+    b.appendChild(lim);
+  }
+
+  if (n === 4){
+    b.appendChild(el('p','display d-lg', item.cta));
+    b.appendChild(gap('l'));
+    const box = el('div','ctabox');
+    box.appendChild(el('div','site', item.sito || 'nutritiondilemma.it'));
+    box.appendChild(el('div','sub','Link in bio'));
+    b.appendChild(box);
+  }
+
+  return b;
+}
+
+function buildFonte(item, n){
+  const bits = [];
+  if (n === 1 || n === 4){
+    if (item.fonte) bits.push(item.fonte);
+    if (item.pmid) bits.push('PMID ' + item.pmid);
+  }
+  return bits.join('  ·  ');
+}
+
+/* ---------- auto-fit: scala il corpo finché sta dentro ---------- */
+function fitBody(body, min, max){
+  const fits = (px) => {
+    body.style.fontSize = px + 'px';
+    // forza il reflow
+    void body.offsetHeight;
+    return body.scrollHeight <= body.clientHeight + 1;
+  };
+  if (fits(max)) return { size: max, ok: true };
+  let lo = min, hi = max, best = null;
+  for (let i = 0; i < 22; i++){
+    const mid = (lo + hi) / 2;
+    if (fits(mid)){ best = mid; lo = mid; } else { hi = mid; }
+    if (hi - lo < 0.25) break;
+  }
+  if (best == null){
+    fits(min);
+    return { size: min, ok: false };
+  }
+  fits(best);
+  return { size: best, ok: true };
+}
+
+/* ---------- entry point chiamato da render.js ---------- */
+window.renderSlide = function(item, n, opts){
+  opts = opts || {};
+  const stage = document.getElementById('stage');
+  stage.innerHTML = '';
+
+  const top = el('div','top');
+  top.appendChild(el('div','eyebrow', item.eyebrow || 'Nutrition Dilemma'));
+  top.appendChild(el('div','pager', n + '/' + PAL.total));
+  stage.appendChild(top);
+
+  const body = buildBody(item, n);
+  stage.appendChild(body);
+
+  const bottom = el('div','bottom');
+  bottom.appendChild(el('div','fonte', buildFonte(item, n)));
+  stage.appendChild(bottom);
+
+  const res = fitBody(body, opts.min || 22, opts.max || 44);
+
+  // controllo finale di tracimazione su tutto lo stage
+  const overflowStage = stage.scrollHeight > stage.clientHeight + 1
+                     || stage.scrollWidth  > stage.clientWidth  + 1;
+
+  return { fontSize: Math.round(res.size * 10) / 10, ok: res.ok && !overflowStage };
+};
+</script>
+</body>
+</html>

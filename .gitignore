@@ -1,0 +1,4 @@
+node_modules/
+out/
+dati.json
+.DS_Store
