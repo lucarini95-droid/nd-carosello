@@ -18,6 +18,10 @@ function esito(chiave, valore) {
 }
 
 (async () => {
+  // residuo di un giro precedente: va rimosso, altrimenti segnala-errore.js
+  // marcherebbe righe che con questo giro non c'entrano nulla
+  try { fs.unlinkSync('ci/falliti.json'); } catch (e) { /* non c'era */ }
+
   const righe = await N.righeDaCoprire(10);
   console.log(`Righe "da pubblicare" da oggi (${N.oggiRoma()}) in avanti: ${righe.length}`);
 
@@ -52,7 +56,7 @@ function esito(chiave, valore) {
       continue;
     }
 
-        // la data della riga vince su quella scritta nel JSON
+    // la data della riga vince su quella scritta nel JSON
     const dataRiga = riga.properties?.['Data pubblicazione']?.date?.start;
     if (dataRiga) d.data = String(dataRiga).slice(0, 10);
 
@@ -64,7 +68,7 @@ function esito(chiave, valore) {
     }
 
     dati.push(d);
-    mappa.push({ pageId: riga.id, cartella: `${d.data}-${d.slug}`, titolo });
+    mappa.push({ pageId: riga.id, slug: d.slug, cartella: `${d.data}-${d.slug}`, titolo });
     console.log(`  da fare  "${titolo}" -> ${d.data}-${d.slug}`);
   }
 
