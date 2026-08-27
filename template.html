@@ -53,6 +53,11 @@
   .d-md{font-size:1.34em}
   .up{text-transform:uppercase}
 
+  /* Parola troppo larga per la colonna: rimpicciolita quanto basta e
+     marcata con il verde di marca, cosi' la riduzione sembra una scelta
+     tipografica e non un incidente. Vedi adattaParoleLunghe(). */
+  .parola-lunga{color:var(--green)}
+
   .label{
     font-family:'ND Mono',monospace;font-weight:700;
     font-size:.44em;letter-spacing:.19em;text-transform:uppercase;color:var(--green);
@@ -157,6 +162,51 @@ function buildFonte(item, n){
   return bits.join('  ·  ');
 }
 
+/* ---------- parole piu' larghe della colonna ----------
+   L'auto-fit scala il corpo ma misura solo l'altezza: una parola piu' larga
+   della colonna non ci sta a nessuna dimensione del corpo, perche' scalando
+   scala anche la colonna. Qui ogni parola dei testi display viene misurata da
+   sola e, se sfora, rimpicciolita del minimo necessario (in em, quindi il
+   rapporto regge a qualunque corpo) e marcata .parola-lunga. */
+function adattaParoleLunghe(body, corpoMax){
+  const precedente = body.style.fontSize;
+  body.style.fontSize = corpoMax + 'px';
+
+  const ridotte = [];
+  const displays = body.querySelectorAll('.display');
+
+  for (const d of displays){
+    const testo = d.textContent;
+    if (!testo.trim()) continue;
+
+    // ricostruisce il testo come sequenza di span, uno per parola
+    d.textContent = '';
+    const parole = testo.split(/(\s+)/);
+    const span = [];
+    for (const pezzo of parole){
+      if (/^\s+$/.test(pezzo)){ d.appendChild(document.createTextNode(pezzo)); continue; }
+      const w = document.createElement('span');
+      w.textContent = pezzo;
+      d.appendChild(w);
+      span.push(w);
+    }
+
+    const disponibile = d.clientWidth;
+    for (const w of span){
+      const largh = w.getBoundingClientRect().width;
+      if (largh <= disponibile) continue;
+      // 0.98 = un filo di margine, gli arrotondamenti sub-pixel mordono
+      const rapporto = Math.floor((disponibile / largh) * 0.98 * 100) / 100;
+      w.style.fontSize = rapporto + 'em';
+      w.className = 'parola-lunga';
+      ridotte.push({ parola: w.textContent, rapporto: rapporto });
+    }
+  }
+
+  body.style.fontSize = precedente;
+  return ridotte;
+}
+
 /* ---------- auto-fit: scala il corpo finché sta dentro ---------- */
 function fitBody(body, min, max){
   const fits = (px) => {
@@ -198,13 +248,17 @@ window.renderSlide = function(item, n, opts){
   bottom.appendChild(el('div','fonte', buildFonte(item, n)));
   stage.appendChild(bottom);
 
+  // prima la larghezza (parole singole piu' larghe della colonna), poi l'altezza:
+  // rimpicciolire una parola cambia gli a capo, quindi l'auto-fit va fatto dopo
+  const ridotte = adattaParoleLunghe(body, opts.max || 44);
+
   const res = fitBody(body, opts.min || 22, opts.max || 44);
 
   // controllo finale di tracimazione su tutto lo stage
   const overflowStage = stage.scrollHeight > stage.clientHeight + 1
                      || stage.scrollWidth  > stage.clientWidth  + 1;
 
-  return { fontSize: Math.round(res.size * 10) / 10, ok: res.ok && !overflowStage };
+  return { fontSize: Math.round(res.size * 10) / 10, ok: res.ok && !overflowStage, ridotte: ridotte };
 };
 </script>
 </body>
