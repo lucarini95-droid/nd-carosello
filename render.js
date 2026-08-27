@@ -50,6 +50,23 @@ function fail(code, msg) {
   process.exit(code);
 }
 
+/**
+ * Elenca gli slug che hanno fatto fallire il giro, cosi' che ci/segnala-errore.js
+ * marchi "errore" solo quelle righe invece dell'intero lotto della notte.
+ */
+function scriviFalliti(elenco) {
+  if (!elenco.length) return;
+  try {
+    fs.writeFileSync(
+      path.join(__dirname, 'ci', 'falliti.json'),
+      JSON.stringify(elenco, null, 2)
+    );
+    console.error(`  (annotati ${elenco.length} slug in ci/falliti.json)`);
+  } catch (e) {
+    console.error('  non sono riuscito a scrivere ci/falliti.json: ' + e.message);
+  }
+}
+
 function cssFonts() {
   return FONTS.map(([family, weight, rel]) => {
     const file = path.join(__dirname, 'node_modules', rel);
@@ -63,23 +80,26 @@ function cssFonts() {
 }
 
 function validaItem(item, i) {
-  const dove = `elemento ${i + 1}` + (item && item.slug ? ` (${item.slug})` : '');
-  if (!item || typeof item !== 'object') return `${dove}: non e' un oggetto`;
+  const slug = item && typeof item.slug === 'string' ? item.slug : null;
+  const dove = `elemento ${i + 1}` + (slug ? ` (${slug})` : '');
+  const ko = (motivo) => ({ slug, motivo: `${dove}: ${motivo}` });
+
+  if (!item || typeof item !== 'object') return ko("non e' un oggetto");
 
   for (const campo of CAMPI_OBBLIGATORI) {
     const v = item[campo];
     if (typeof v !== 'string' || v.trim() === '') {
-      return `${dove}: campo "${campo}" mancante o vuoto`;
+      return ko(`campo "${campo}" mancante o vuoto`);
     }
     for (const re of SEGNAPOSTO) {
-      if (re.test(v)) return `${dove}: campo "${campo}" contiene un segnaposto (${re})`;
+      if (re.test(v)) return ko(`campo "${campo}" contiene un segnaposto (${re})`);
     }
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(item.data)) {
-    return `${dove}: "data" deve essere AAAA-MM-GG, trovato "${item.data}"`;
+    return ko(`"data" deve essere AAAA-MM-GG, trovato "${item.data}"`);
   }
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(item.slug)) {
-    return `${dove}: "slug" deve essere minuscolo con trattini, trovato "${item.slug}"`;
+    return ko(`"slug" deve essere minuscolo con trattini, trovato "${item.slug}"`);
   }
   return null;
 }
@@ -139,7 +159,8 @@ async function main() {
   // 1) validazione di TUTTI gli elementi prima di renderizzarne uno solo
   const errori = dati.map(validaItem).filter(Boolean);
   if (errori.length) {
-    errori.forEach((e) => console.error('  - ' + e));
+    errori.forEach((e) => console.error('  - ' + e.motivo));
+    scriviFalliti(errori);
     fail(EXIT_CAMPI, `${errori.length} elemento/i non renderizzabile/i. Nessun file prodotto.`);
   }
 
@@ -170,9 +191,10 @@ async function main() {
         [item, n, { min: CORPO_MIN, max: CORPO_MAX }]
       );
       if (!res.ok) {
-        troppoLungo.push(
-          `${item.slug} slide ${n}: il testo non ci sta nemmeno al corpo minimo (${CORPO_MIN}px)`
-        );
+        troppoLungo.push({
+          slug: item.slug,
+          motivo: `${item.slug} slide ${n}: il testo non ci sta nemmeno al corpo minimo (${CORPO_MIN}px)`,
+        });
         continue;
       }
       const file = path.join(cartella, `slide-${n}.jpg`);
@@ -186,7 +208,8 @@ async function main() {
   await browser.close();
 
   if (troppoLungo.length) {
-    troppoLungo.forEach((e) => console.error('  - ' + e));
+    troppoLungo.forEach((e) => console.error('  - ' + e.motivo));
+    scriviFalliti(troppoLungo);
     // le slide gia' scritte restano su disco ma il carosello non e' valido
     fail(EXIT_OVERFLOW, `${troppoLungo.length} slide con testo fuori pagina. Accorcia i campi.`);
   }
